@@ -9,7 +9,8 @@ const https = require('https');
 const uuid = require('uuid');
 
 const Homey = require('homey');
-const { HomeyAPI } = require('athom-api');
+const { HomeyAPI } = require('homey-api');
+const { HomeyAPI: HomeyAPILegacy } = require('athom-api');
 const fetch = require('node-fetch');
 const _ = require('lodash');
 
@@ -320,7 +321,15 @@ module.exports = class HomeyScriptApp extends Homey.App {
   }
 
   async getHomeyAPI() {
-    const api = new HomeyAPI({
+    const api = await HomeyAPI.createAppAPI({
+      homey: this.homey,
+      debug: (...props) => this.log('[homey-api]', ...props),
+    });
+    return api;
+  }
+
+  async getHomeyAPILegacy() {
+    const api = new HomeyAPILegacy({
       localUrl: this.localURL,
       baseUrl: this.localURL,
       token: this.sessionToken,
@@ -410,7 +419,11 @@ module.exports = class HomeyScriptApp extends Homey.App {
   }) {
     if (lastExecuted == null) lastExecuted = new Date();
 
-    const homeyAPI = await this.getHomeyAPI();
+    // Get HomeyAPI instance
+    // TODO: We should tag 'old' scripts and let them use the legacy API.
+    const homeyAPI = this.homey.platformVersion >= 2
+      ? await this.getHomeyAPI()
+      : await this.getHomeyAPILegacy();
 
     // Create a Logger
     const log = (...props) => {
